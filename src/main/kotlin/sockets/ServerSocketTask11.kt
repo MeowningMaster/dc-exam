@@ -1,67 +1,75 @@
 package sockets
 
+import QueriesBase
+import java.io.EOFException
 import java.io.ObjectInputStream
 import java.io.ObjectOutputStream
 import java.net.ServerSocket
-import java.io.EOFException
-
-private lateinit var socketOut: ObjectOutputStream
-private lateinit var socketIn: ObjectInputStream
+import java.net.Socket
 
 fun main() {
     val serverSocket = ServerSocket(port)
+    serverSocket.reuseAddress = true
     println("Server started on $port")
 
-    val socket = serverSocket.accept()
-    socketIn = ObjectInputStream(socket.getInputStream())
-    socketOut = ObjectOutputStream(socket.getOutputStream())
-    println("End of queries")
+    while (true) {
+        val socket = serverSocket.accept()
+        println("Client connected")
+        val handler = Handler(socket)
+        Thread(handler).start()
+    }
+}
 
-    try {
-        while(true) {
-            executeCommand(socketRead())
+private class Handler(socket: Socket): Runnable {
+    val socketIn = ObjectInputStream(socket.getInputStream())
+    val socketOut = ObjectOutputStream(socket.getOutputStream())
+
+    override fun run() {
+        try {
+            while(true) {
+                executeCommand(socketRead())
+            }
+        } catch (e: EOFException) {
+            println("Connection closed")
         }
-    } catch (e: EOFException) {
-        println("Server shutting down")
     }
 
-}
-
-private fun executeCommand(command: String) {
-    when (command) {
-        findAllByRouteNumber -> findAllByRouteNumber()
-        findAllByMinExploitation -> findAllByMinExploitation()
-        findAllByMinMileage -> findAllByMinMileage()
+    fun executeCommand(command: String) {
+        when (command) {
+            findAllByRouteNumber -> findAllByRouteNumber()
+            findAllByMinExploitation -> findAllByMinExploitation()
+            findAllByMinMileage -> findAllByMinMileage()
+        }
     }
-}
 
-private fun socketWrite(obj: Any) {
-    socketOut.writeObject(obj)
-    socketOut.flush()
-    println("$obj ->")
-}
-
-private inline fun <reified T> socketRead(): T {
-    val obj = socketIn.readObject()
-    return if (obj is T) {
-        println("<- $obj")
-        obj
-    } else {
-        throw RuntimeException()
+    fun socketWrite(obj: Any) {
+        socketOut.writeObject(obj)
+        socketOut.flush()
+        println("$obj ->")
     }
-}
 
-private fun findAllByRouteNumber() {
-    val routeNumber = socketRead<String>()
-    socketWrite(QueriesBase.findAllByRouteNumber(routeNumber))
-}
+    inline fun <reified T> socketRead(): T {
+        val obj = socketIn.readObject()
+        return if (obj is T) {
+            println("<- $obj")
+            obj
+        } else {
+            throw RuntimeException()
+        }
+    }
 
-private fun findAllByMinExploitation() {
-    val exploitation = socketRead<Int>()
-    socketWrite(QueriesBase.findAllByMinExploitation(exploitation))
-}
+    fun findAllByRouteNumber() {
+        val routeNumber = socketRead<String>()
+        socketWrite(QueriesBase.findAllByRouteNumber(routeNumber))
+    }
 
-private fun findAllByMinMileage() {
-    val mileage = socketRead<Int>()
-    socketWrite(QueriesBase.findAllByMinMileage(mileage))
+    fun findAllByMinExploitation() {
+        val exploitation = socketRead<Int>()
+        socketWrite(QueriesBase.findAllByMinExploitation(exploitation))
+    }
+
+    fun findAllByMinMileage() {
+        val mileage = socketRead<Int>()
+        socketWrite(QueriesBase.findAllByMinMileage(mileage))
+    }
 }
