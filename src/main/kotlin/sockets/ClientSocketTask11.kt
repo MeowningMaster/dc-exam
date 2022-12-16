@@ -48,7 +48,7 @@ private fun findAllByMinExploitation(exploitation: Int) {
 }
 
 private fun findAllByMinMileage(mileage: Int) {
-    socketWrite(findAllByMinExploitation)
+    socketWrite(findAllByMinMileage)
     socketWrite(mileage)
     val result = socketRead<List<Bus>>()
     println(result)
